@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:localsend_app/config/theme.dart';
 import 'package:localsend_app/gen/strings.g.dart';
 import 'package:localsend_app/provider/tv_provider.dart';
-import 'package:localsend_app/theme.dart';
 import 'package:refena_flutter/refena_flutter.dart';
 import 'package:routerino/routerino.dart';
 
@@ -10,12 +10,14 @@ import 'package:routerino/routerino.dart';
 class TextFieldTv extends StatefulWidget {
   final String name;
   final TextEditingController controller;
-  final ValueChanged<String> onChanged;
+  final ValueChanged<String>? onChanged;
+  final VoidCallback? onDelete;
 
   const TextFieldTv({
     required this.name,
     required this.controller,
-    required this.onChanged,
+    this.onChanged,
+    this.onDelete,
   });
 
   @override
@@ -71,6 +73,16 @@ class _TextFieldTvState extends State<TextFieldTv> with Refena {
         controller: widget.controller,
         textAlign: TextAlign.center,
         onChanged: widget.onChanged,
+        decoration: InputDecoration(
+          suffixIcon: widget.onDelete != null
+              ? IconButton(
+                  icon: Icon(Icons.clear),
+                  onPressed: () {
+                    widget.onDelete?.call();
+                  },
+                )
+              : null,
+        ),
       );
     }
   }

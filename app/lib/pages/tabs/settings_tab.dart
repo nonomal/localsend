@@ -1,32 +1,37 @@
-import 'package:common/common.dart';
+import 'dart:io';
+import 'package:common/constants.dart';
+import 'package:common/model/device.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:localsend_app/config/theme.dart';
 import 'package:localsend_app/gen/strings.g.dart';
 import 'package:localsend_app/model/persistence/color_mode.dart';
 import 'package:localsend_app/pages/about/about_page.dart';
 import 'package:localsend_app/pages/changelog_page.dart';
 import 'package:localsend_app/pages/donation/donation_page.dart';
 import 'package:localsend_app/pages/language_page.dart';
+import 'package:localsend_app/pages/settings/network_interfaces_page.dart';
 import 'package:localsend_app/pages/tabs/settings_tab_controller.dart';
 import 'package:localsend_app/provider/settings_provider.dart';
 import 'package:localsend_app/provider/version_provider.dart';
-import 'package:localsend_app/theme.dart';
+import 'package:localsend_app/util/alias_generator.dart';
 import 'package:localsend_app/util/device_type_ext.dart';
-import 'package:localsend_app/util/native/autostart_helper.dart';
+import 'package:localsend_app/util/native/macos_channel.dart';
 import 'package:localsend_app/util/native/pick_directory_path.dart';
 import 'package:localsend_app/util/native/platform_check.dart';
 import 'package:localsend_app/widget/custom_dropdown_button.dart';
 import 'package:localsend_app/widget/dialogs/encryption_disabled_notice.dart';
+import 'package:localsend_app/widget/dialogs/pin_dialog.dart';
+import 'package:localsend_app/widget/dialogs/quick_save_from_favorites_notice.dart';
 import 'package:localsend_app/widget/dialogs/quick_save_notice.dart';
 import 'package:localsend_app/widget/dialogs/text_field_tv.dart';
+import 'package:localsend_app/widget/dialogs/text_field_with_actions.dart';
 import 'package:localsend_app/widget/labeled_checkbox.dart';
 import 'package:localsend_app/widget/local_send_logo.dart';
 import 'package:localsend_app/widget/responsive_list_view.dart';
 import 'package:refena_flutter/refena_flutter.dart';
 import 'package:routerino/routerino.dart';
 import 'package:url_launcher/url_launcher.dart';
-
-final _isLinux = checkPlatform([TargetPlatform.linux]);
-final _isWindows = checkPlatform([TargetPlatform.windows]);
 
 class SettingsTab extends StatelessWidget {
   const SettingsTab();
@@ -85,7 +90,9 @@ class SettingsTab extends StatelessWidget {
                   /// Wayland does window position handling, so there's no need for it. See [https://github.com/localsend/localsend/issues/544]
                   if (vm.advanced && checkPlatformIsNotWaylandDesktop())
                     _BooleanEntry(
-                      label: t.settingsTab.general.saveWindowPlacement,
+                      label: defaultTargetPlatform == TargetPlatform.windows
+                          ? t.settingsTab.general.saveWindowPlacementWindows
+                          : t.settingsTab.general.saveWindowPlacement,
                       value: vm.settings.saveWindowPlacement,
                       onChanged: (b) async {
                         await ref.notifier(settingsProvider).setSaveWindowPlacement(b);
@@ -100,62 +107,34 @@ class SettingsTab extends StatelessWidget {
                       },
                     ),
                   ],
-                  // Linux autostart is simpler, so a boolean entry is used
-                  if (_isLinux)
+                  if (checkPlatformIsDesktop()) ...[
                     _BooleanEntry(
                       label: t.settingsTab.general.launchAtStartup,
-                      value: vm.settings.launchAtStartup,
-                      onChanged: (b) async {
-                        late bool result;
-                        if (await isLinuxLaunchAtStartEnabled()) {
-                          result = await initDisableAutoStart(vm.settings);
-                        } else {
-                          result = await initEnableAutoStartAndOpenSettings(vm.settings);
-                        }
-                        if (result) {
-                          await ref.notifier(settingsProvider).setLaunchAtStartup(b);
-                        }
-                      },
+                      value: vm.autoStart,
+                      onChanged: (_) => vm.onToggleAutoStart(context),
                     ),
-                  // Windows requires a manual action, so this settings entry is required
-                  if (_isWindows)
-                    _SettingsEntry(
-                      label: t.settingsTab.general.launchAtStartup,
-                      child: TextButton(
-                        style: TextButton.styleFrom(
-                          backgroundColor: Theme.of(context).inputDecorationTheme.fillColor,
-                          shape: RoundedRectangleBorder(borderRadius: Theme.of(context).inputDecorationTheme.borderRadius),
-                          foregroundColor: Theme.of(context).colorScheme.onSurface,
-                        ),
-                        onPressed: () async {
-                          await initDisableAutoStart(vm.settings);
-                          await initEnableAutoStartAndOpenSettings(vm.settings, _isWindows);
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 5),
-                          child: Text(t.general.settings, style: Theme.of(context).textTheme.titleMedium),
-                        ),
-                      ),
-                    ),
-                  if (_isWindows || _isLinux)
                     Visibility(
-                      visible: vm.settings.launchAtStartup || _isWindows,
+                      visible: vm.autoStart,
                       maintainAnimation: true,
                       maintainState: true,
                       child: AnimatedOpacity(
-                        opacity: vm.settings.launchAtStartup || _isWindows ? 1.0 : 0.0,
+                        opacity: vm.autoStart ? 1.0 : 0.0,
                         duration: const Duration(milliseconds: 500),
                         child: _BooleanEntry(
                           label: t.settingsTab.general.launchMinimized,
-                          value: vm.settings.autoStartLaunchMinimized,
-                          onChanged: (b) async {
-                            await initDisableAutoStart(vm.settings);
-                            await ref.notifier(settingsProvider).setAutoStartLaunchMinimized(b);
-                            await initEnableAutoStartAndOpenSettings(vm.settings, _isWindows);
-                          },
+                          value: vm.autoStartLaunchHidden,
+                          onChanged: (_) => vm.onToggleAutoStartLaunchHidden(context),
                         ),
                       ),
                     ),
+                  ],
+                  if (vm.advanced && checkPlatform([TargetPlatform.windows])) ...[
+                    _BooleanEntry(
+                      label: t.settingsTab.general.showInContextMenu,
+                      value: vm.showInContextMenu,
+                      onChanged: (_) => vm.onToggleShowInContextMenu(context),
+                    ),
+                  ],
                 ],
                 _BooleanEntry(
                   label: t.settingsTab.general.animations,
@@ -180,6 +159,39 @@ class SettingsTab extends StatelessWidget {
                     }
                   },
                 ),
+                _BooleanEntry(
+                  label: t.settingsTab.receive.quickSaveFromFavorites,
+                  value: vm.settings.quickSaveFromFavorites,
+                  onChanged: (b) async {
+                    final old = vm.settings.quickSaveFromFavorites;
+                    await ref.notifier(settingsProvider).setQuickSaveFromFavorites(b);
+                    if (!old && b && context.mounted) {
+                      await QuickSaveFromFavoritesNotice.open(context);
+                    }
+                  },
+                ),
+                _BooleanEntry(
+                  label: t.settingsTab.receive.requirePin,
+                  value: vm.settings.receivePin != null,
+                  onChanged: (b) async {
+                    final currentPIN = vm.settings.receivePin;
+                    if (currentPIN != null) {
+                      await ref.notifier(settingsProvider).setReceivePin(null);
+                    } else {
+                      final String? newPin = await showDialog<String>(
+                        context: context,
+                        builder: (_) => const PinDialog(
+                          obscureText: false,
+                          generateRandom: false,
+                        ),
+                      );
+
+                      if (newPin != null && newPin.isNotEmpty) {
+                        await ref.notifier(settingsProvider).setReceivePin(newPin);
+                      }
+                    }
+                  },
+                ),
                 if (checkPlatformWithFileSystem())
                   _SettingsEntry(
                     label: t.settingsTab.receive.destination,
@@ -192,11 +204,17 @@ class SettingsTab extends StatelessWidget {
                       onPressed: () async {
                         if (vm.settings.destination != null) {
                           await ref.notifier(settingsProvider).setDestination(null);
+                          if (defaultTargetPlatform == TargetPlatform.macOS) {
+                            await removeExistingDestinationAccess();
+                          }
                           return;
                         }
 
                         final directory = await pickDirectoryPath();
                         if (directory != null) {
+                          if (defaultTargetPlatform == TargetPlatform.macOS) {
+                            await persistDestinationFolderAccess(directory);
+                          }
                           await ref.notifier(settingsProvider).setDestination(directory);
                         }
                       },
@@ -303,12 +321,43 @@ class SettingsTab extends StatelessWidget {
                 ),
                 _SettingsEntry(
                   label: t.settingsTab.network.alias,
-                  child: TextFieldTv(
+                  child: TextFieldWithActions(
                     name: t.settingsTab.network.alias,
                     controller: vm.aliasController,
                     onChanged: (s) async {
                       await ref.notifier(settingsProvider).setAlias(s);
                     },
+                    actions: [
+                      Tooltip(
+                        message: t.settingsTab.network.generateRandomAlias,
+                        child: IconButton(
+                          onPressed: () async {
+                            // Generates random alias
+                            final newAlias = generateRandomAlias();
+
+                            // Update the TextField with the new alias
+                            vm.aliasController.text = newAlias;
+
+                            // Persist the new alias using the settingsProvider
+                            await ref.notifier(settingsProvider).setAlias(newAlias);
+                          },
+                          icon: const Icon(Icons.casino),
+                        ),
+                      ),
+                      Tooltip(
+                        message: t.settingsTab.network.useSystemName,
+                        child: IconButton(
+                          onPressed: () async {
+                            // Uses dart.io to find the systems hostname
+                            final newAlias = Platform.localHostname;
+
+                            vm.aliasController.text = newAlias;
+                            await ref.notifier(settingsProvider).setAlias(newAlias);
+                          },
+                          icon: const Icon(Icons.desktop_windows_rounded),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 if (vm.advanced)
@@ -349,6 +398,31 @@ class SettingsTab extends StatelessWidget {
                         final port = int.tryParse(s);
                         if (port != null) {
                           await ref.notifier(settingsProvider).setPort(port);
+                        }
+                      },
+                    ),
+                  ),
+                if (vm.advanced)
+                  _ButtonEntry(
+                    label: t.settingsTab.network.network,
+                    buttonLabel: switch (vm.settings.networkWhitelist != null || vm.settings.networkBlacklist != null) {
+                      true => t.settingsTab.network.networkOptions.filtered,
+                      false => t.settingsTab.network.networkOptions.all,
+                    },
+                    onTap: () async {
+                      await context.push(() => const NetworkInterfacesPage());
+                    },
+                  ),
+                if (vm.advanced)
+                  _SettingsEntry(
+                    label: t.settingsTab.network.discoveryTimeout,
+                    child: TextFieldTv(
+                      name: t.settingsTab.network.discoveryTimeout,
+                      controller: vm.timeoutController,
+                      onChanged: (s) async {
+                        final timeout = int.tryParse(s);
+                        if (timeout != null) {
+                          await ref.notifier(settingsProvider).setDiscoveryTimeout(timeout);
                         }
                       },
                     ),
@@ -427,7 +501,7 @@ class SettingsTab extends StatelessWidget {
                   buttonLabel: t.general.open,
                   onTap: () async {
                     await launchUrl(
-                      Uri.parse('https://localsend.org/#/privacy'),
+                      Uri.parse('https://localsend.org/privacy'),
                       mode: LaunchMode.externalApplication,
                     );
                   },
@@ -452,7 +526,10 @@ class SettingsTab extends StatelessWidget {
                   label: t.settingsTab.advancedSettings,
                   value: vm.advanced,
                   labelFirst: true,
-                  onChanged: (b) => vm.onTapAdvanced(b == true),
+                  onChanged: (b) async {
+                    vm.onTapAdvanced(b == true);
+                    await ref.notifier(settingsProvider).setAdvancedSettingsEnabled(b == true);
+                  },
                 ),
                 const SizedBox(width: 10),
               ],

@@ -28,12 +28,14 @@ const _translators = <AppLocale, List<String>>{
   ],
   AppLocale.esEs: [
     'Esteban Daniel Saracho (@esaracho)',
+    'Rafael González (@LoboGuardian)',
   ],
   AppLocale.fa: [
     '@farshad991',
   ],
   AppLocale.filPh: [
     'Bryan James Ilaga (@BryanJames16)',
+    'Linwel Colmo (@leanwell)',
   ],
   AppLocale.fr: [
     '@Nixuge',
@@ -46,6 +48,7 @@ const _translators = <AppLocale, List<String>>{
   ],
   AppLocale.it: [
     'Francesco Marastoni (@Francesco146)',
+    'Dario Landucci (@LandOfDar)',
   ],
   AppLocale.ja: [
     'soya_daizu (@soya-daizu)',
@@ -56,6 +59,11 @@ const _translators = <AppLocale, List<String>>{
   AppLocale.ko: [
     '@mgmix',
   ],
+  AppLocale.nl: [
+    'Martijn van Berkel (@Flitskikker)',
+    '@stijnphr',
+    '@jan-vandenberg',
+  ],
   AppLocale.pl: [
     '@Radplay',
     '@trag1c',
@@ -65,14 +73,22 @@ const _translators = <AppLocale, List<String>>{
     'Gabriel Lima (@TheGB0077)',
     'Arthur Lobo (@ArthurLobopro)',
   ],
+  AppLocale.ro: [
+    '@UnifeGi',
+  ],
   AppLocale.ru: [
     'Sergiy Tkachuk (@sergd88)',
+  ],
+  AppLocale.sr: [
+    'Nebojsa Tomic (@nebojsatomic)',
+    'Nemanja Dimitrijevic (@nemanya-d)',
   ],
   AppLocale.th: [
     '@watchakorn-18k',
   ],
   AppLocale.tr: [
     'Mert Şişmanoğlu (@mertssmnoglu)',
+    'Ali Mert Erdogan (@aliwert)',
   ],
   AppLocale.uk: [
     'Sergiy Tkachuk (@sergd88)',
