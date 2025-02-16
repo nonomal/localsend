@@ -1,7 +1,9 @@
-import 'package:common/common.dart';
+import 'package:common/model/file_type.dart';
 import 'package:localsend_app/model/persistence/receive_history_entry.dart';
 import 'package:localsend_app/provider/persistence_provider.dart';
 import 'package:refena_flutter/refena_flutter.dart';
+
+const _maxHistoryEntries = 30;
 
 /// This provider stores the history of received files.
 /// It automatically saves the history to the device's storage.
@@ -25,6 +27,7 @@ class AddHistoryEntryAction extends AsyncReduxAction<ReceiveHistoryService, List
   final FileType fileType;
   final String? path;
   final bool savedToGallery;
+  final bool isMessage;
   final int fileSize;
   final String senderAlias;
   final DateTime timestamp;
@@ -35,6 +38,7 @@ class AddHistoryEntryAction extends AsyncReduxAction<ReceiveHistoryService, List
     required this.fileType,
     required this.path,
     required this.savedToGallery,
+    required this.isMessage,
     required this.fileSize,
     required this.senderAlias,
     required this.timestamp,
@@ -53,12 +57,13 @@ class AddHistoryEntryAction extends AsyncReduxAction<ReceiveHistoryService, List
         fileType: fileType,
         path: path,
         savedToGallery: savedToGallery,
+        isMessage: isMessage,
         fileSize: fileSize,
         senderAlias: senderAlias,
         timestamp: timestamp,
       ),
       ...state,
-    ].take(200).toList();
+    ].take(_maxHistoryEntries).toList();
     await notifier._persistence.setReceiveHistory(updated);
     return updated;
   }

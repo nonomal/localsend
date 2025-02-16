@@ -1,11 +1,15 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:localsend_app/config/theme.dart';
 import 'package:localsend_app/gen/strings.g.dart';
 import 'package:localsend_app/model/persistence/receive_history_entry.dart';
+import 'package:localsend_app/pages/receive_page.dart';
+import 'package:localsend_app/pages/receive_page_controller.dart';
 import 'package:localsend_app/provider/receive_history_provider.dart';
 import 'package:localsend_app/provider/settings_provider.dart';
-import 'package:localsend_app/theme.dart';
 import 'package:localsend_app/util/file_size_helper.dart';
-import 'package:localsend_app/util/native/get_destination_directory.dart';
+import 'package:localsend_app/util/native/directories.dart';
 import 'package:localsend_app/util/native/open_file.dart';
 import 'package:localsend_app/util/native/open_folder.dart';
 import 'package:localsend_app/util/native/platform_check.dart';
@@ -13,22 +17,23 @@ import 'package:localsend_app/widget/dialogs/file_info_dialog.dart';
 import 'package:localsend_app/widget/dialogs/history_clear_dialog.dart';
 import 'package:localsend_app/widget/file_thumbnail.dart';
 import 'package:localsend_app/widget/responsive_list_view.dart';
+import 'package:path/path.dart' as path;
 import 'package:refena_flutter/refena_flutter.dart';
+import 'package:routerino/routerino.dart';
 
 enum _EntryOption {
   open,
+  showInFolder,
   info,
   delete;
 
   String get label {
-    switch (this) {
-      case _EntryOption.open:
-        return t.receiveHistoryPage.entryActions.open;
-      case _EntryOption.info:
-        return t.receiveHistoryPage.entryActions.info;
-      case _EntryOption.delete:
-        return t.receiveHistoryPage.entryActions.deleteFromHistory;
-    }
+    return switch (this) {
+      _EntryOption.open => t.receiveHistoryPage.entryActions.open,
+      _EntryOption.showInFolder => t.receiveHistoryPage.entryActions.showInFolder,
+      _EntryOption.info => t.receiveHistoryPage.entryActions.info,
+      _EntryOption.delete => t.receiveHistoryPage.entryActions.deleteFromHistory,
+    };
   }
 }
 
@@ -79,7 +84,7 @@ class ReceiveHistoryPage extends StatelessWidget {
                       : () async {
                           // ignore: use_build_context_synchronously
                           final destination = context.read(settingsProvider).destination ?? await getDefaultDestinationDirectory();
-                          await openFolder(destination);
+                          await openFolder(folderPath: destination);
                         },
                   icon: const Icon(Icons.folder),
                   label: Text(t.receiveHistoryPage.openFolder),
@@ -123,7 +128,18 @@ class ReceiveHistoryPage extends StatelessWidget {
                   splashFactory: NoSplash.splashFactory,
                   highlightColor: Colors.transparent,
                   hoverColor: Colors.transparent,
-                  onTap: entry.path != null ? () async => _openFile(context, entry, context.redux(receiveHistoryProvider)) : null,
+                  onTap: entry.path != null || entry.isMessage
+                      ? () async {
+                          if (entry.isMessage) {
+                            context.redux(receivePageControllerProvider).dispatch(InitReceivePageFromHistoryMessageAction(entry: entry));
+                            // ignore: unawaited_futures
+                            context.push(() => const ReceivePage());
+                            return;
+                          }
+
+                          await _openFile(context, entry, context.redux(receiveHistoryProvider));
+                        }
+                      : null,
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -160,6 +176,14 @@ class ReceiveHistoryPage extends StatelessWidget {
                           switch (item) {
                             case _EntryOption.open:
                               await _openFile(context, entry, context.redux(receiveHistoryProvider));
+                              break;
+                            case _EntryOption.showInFolder:
+                              if (entry.path != null) {
+                                await openFolder(
+                                  folderPath: File(entry.path!).parent.path,
+                                  fileName: path.basename(entry.path!),
+                                );
+                              }
                               break;
                             case _EntryOption.info:
                               // ignore: use_build_context_synchronously

@@ -64,8 +64,9 @@ Git based distribution:
 | [Homebrew][]   | [Homebrew Repo][]   | [@Tienisto][], Github Actions                      |
 | [Flathub][]    | [Flathub Repo][]    | [@proletarius101][], [@Tienisto][], Github Actions |
 | [AUR][]        | [AUR Repo][]        | [@Nixuge][]                                        |
-| [NixOS][]      | [NixOS Repo][]      | [@sikmir][], [@linsui][]                           |
-| [F-Droid][]    | [F-Droid Repo][]    | [@Tienisto][], [F-Droid CI][]                      |
+| [Nixpkgs][]    | [Nixpkgs Repo][]    | [@sikmir][], [@linsui][]                           |
+| [F-Droid][]    | [F-Droid Repo][]    | [@linsui][], [@Tienisto][], [F-Droid CI][]         |
+| [Snap][]       | [Snap Repo][]       | [@thatLeaflet][]                                   |
 
 [winget]: https://github.com/microsoft/winget-pkgs/tree/master/manifests/l/LocalSend/LocalSend
 [winget repo]: https://github.com/microsoft/winget-pkgs/tree/master/manifests/l/LocalSend/LocalSend
@@ -73,16 +74,18 @@ Git based distribution:
 [scoop repo]: https://github.com/ScoopInstaller/Extras/blob/master/bucket/localsend.json
 [chocolatey]: https://community.chocolatey.org/packages/localsend
 [chocolatey repo]: https://github.com/brogers5/chocolatey-package-localsend/tree/main
-[homebrew]: https://github.com/localsend/homebrew-localsend
-[homebrew repo]: https://github.com/localsend/homebrew-localsend
+[homebrew]: https://formulae.brew.sh/cask/localsend
+[homebrew repo]: https://github.com/Homebrew/homebrew-cask/blob/master/Casks/l/localsend.rb
 [flathub]: https://flathub.org/apps/details/org.localsend.localsend_app
 [flathub repo]: https://github.com/flathub/org.localsend.localsend_app
 [aur]: https://aur.archlinux.org/packages/localsend-bin
 [aur repo]: https://aur.archlinux.org/localsend-bin.git
-[nixos]: https://search.nixos.org/packages?show=localsend
-[nixos repo]: https://github.com/NixOS/nixpkgs/blob/master/pkgs/applications/networking/localsend/default.nix
+[nixpkgs]: https://search.nixos.org/packages?show=localsend
+[nixpkgs repo]: https://github.com/NixOS/nixpkgs/blob/master/pkgs/applications/networking/localsend/default.nix
 [f-droid]: https://f-droid.org/packages/org.localsend.localsend_app
 [f-droid repo]: https://gitlab.com/fdroid/fdroiddata/-/blob/master/metadata/org.localsend.localsend_app.yml
+[snap]: https://snapcraft.io/localsend
+[snap repo]: https://github.com/localsend/snap
 
 Manual distribution:
 
@@ -117,6 +120,7 @@ Binary distribution:
 [@brogers5]: https://github.com/brogers5
 [@sikmir]: https://github.com/sikmir
 [@linsui]: https://github.com/linsui
+[@thatLeaflet]: https://github.com/thatLeaflet
 [F-Droid CI]: https://gitlab.com/fdroidci
 
 TODO:
@@ -124,7 +128,6 @@ TODO:
 You can help in publishing LocalSend on more platforms. Please create an issue to notify us!
 
 - Traditional Linux distributions (Debian, Fedora, etc.)
-- Snap
 - (Your idea here)
 
 ## Notes
@@ -161,3 +164,35 @@ Suppose we want to update flutter to `3.7.8` (see https://github.com/localsend/l
 3. Update flutter constraints:
    1. In CI: `.github/workflows/ci.yml`
    2. In pubspec: `pubspec.yaml`
+
+### Release
+
+Make sure to set up the self-hosted runner to compile arm64 linux binaries.
+
+To set up the runner, follow the following instructions:
+
+Install Flutter
+
+```bash
+sudo apt install git
+git clone https://github.com/flutter/flutter.git $HOME/flutter
+nano $HOME/.bashrc
+```
+
+Add the following to the end of the file:
+
+```bash
+export PATH="$PATH:$HOME/flutter/bin"
+```
+
+Restart the terminal.
+
+```bash
+flutter doctor
+```
+
+Next, follow the instructions to set up the GitHub runner.
+
+Start the "Release Draft" workflow from the "Actions" tab: https://github.com/localsend/localsend/actions/workflows/release.yml
+
+Finally, compile binaries not yet supported by the pipeline.
